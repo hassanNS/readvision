@@ -16,6 +16,7 @@ import PyPDF2
 
 from ..utils.text_cleaner import TextCleaner
 from ..utils.document_creator import DocumentCreator
+from ..utils.translator import TextTranslator
 
 
 class PDFOCRProcessor:
@@ -178,6 +179,10 @@ class PDFOCRProcessor:
         with open(output_path, 'w', encoding=encoding) as f:
             f.write(combined_text)
 
+        # Handle translation if requested
+        if getattr(self, 'translate_to', None):
+            self._create_translated_files(page_texts, page_numbers, output_path)
+
         print(f"OCR completed. Output saved to: {word_output_path} and {output_path}")
 
     def process_large_pdf(self, pdf_path, output_path):
@@ -291,10 +296,76 @@ class PDFOCRProcessor:
         with open(output_path, 'w', encoding=encoding) as f:
             f.write(combined_text)
 
+        # Handle translation if requested
+        if getattr(self, 'translate_to', None):
+            self._create_translated_files(page_texts, page_numbers, output_path)
+
         # Cleanup GCS
         # self._cleanup_gcs()
 
         print(f"OCR completed. Output saved to: {word_output_path} and {output_path}")
+
+    def _create_translated_files(self, page_texts, page_numbers, original_output_path):
+        """
+        Create translated versions of the text and Word files.
+
+        Args:
+            page_texts: List of original page texts
+            page_numbers: List of page numbers
+            original_output_path: Path to the original output file
+        """
+        print(f"🌐 Starting translation to '{self.translate_to}'...")
+
+        # Initialize translator
+        credentials_path = os.environ.get('GOOGLE_APPLICATION_CREDENTIALS', 'gcp.json')
+        translator = TextTranslator(credentials_path)
+
+        # Translate all pages
+        translated_results = translator.translate_page_texts(
+            page_texts,
+            target_language=self.translate_to,
+            source_language=self.translate_from
+        )
+
+        # Extract translated texts
+        translated_page_texts = [result['translatedText'] for result in translated_results]
+
+        # Create translated file paths
+        base_path = Path(original_output_path)
+        translated_txt_path = str(base_path.with_name(f"{base_path.stem}_translated_{self.translate_to}.txt"))
+        translated_docx_path = str(base_path.with_name(f"{base_path.stem}_translated_{self.translate_to}.docx"))
+
+        # Create translated text file
+        text_cleaner = TextCleaner()
+        translated_all_text = []
+        for page_text in translated_page_texts:
+            translated_all_text.append(text_cleaner.clean_text(page_text))
+
+        translated_combined_text = '\n\n--- PAGE BREAK ---\n\n'.join(translated_all_text)
+
+        encoding = getattr(self, 'encoding', 'utf-8')
+        with open(translated_txt_path, 'w', encoding=encoding) as f:
+            f.write(translated_combined_text)
+
+        # Create translated Word document
+        document_creator = DocumentCreator(
+            text_direction=getattr(self, 'text_direction', 'rtl'),
+            encoding=getattr(self, 'encoding', 'utf-8')
+        )
+        document_creator.create_word_document_with_pages(
+            translated_page_texts,
+            translated_docx_path,
+            page_numbers
+        )
+
+        print(f"✅ Translation completed. Files saved:")
+        print(f"   📄 {translated_txt_path}")
+        print(f"   📝 {translated_docx_path}")
+
+        # Show translation summary
+        detected_language = translated_results[0].get('detectedSourceLanguage', 'unknown') if translated_results else 'unknown'
+        print(f"   🔍 Detected source language: {detected_language}")
+        print(f"   🌐 Translated to: {self.translate_to}")
 
     def _cleanup_gcs(self):
         """Clean up temporary files from GCS bucket"""
@@ -310,7 +381,8 @@ class PDFOCRProcessor:
             return len(reader.pages)
 
     def process_pdf(self, pdf_path, output_path='output.txt', chars_per_page=3000,
-                    text_direction='rtl', encoding='utf-8', language_hint='ar', debug=False):
+                    text_direction='rtl', encoding='utf-8', language_hint='ar', debug=False,
+                    translate_to=None, translate_from=None):
         """
         Main method to process a PDF file
 
@@ -322,6 +394,8 @@ class PDFOCRProcessor:
             encoding: Text file encoding
             language_hint: Language hint for OCR processing
             debug: Enable debug output for page ordering
+            translate_to: Target language code for translation (optional)
+            translate_from: Source language code for translation (optional, auto-detect if None)
         """
         # Store parameters for later use
         self.chars_per_page = chars_per_page
@@ -329,6 +403,8 @@ class PDFOCRProcessor:
         self.encoding = encoding
         self.language_hint = language_hint
         self.debug = debug
+        self.translate_to = translate_to
+        self.translate_from = translate_from
 
         # Check if file exists
         if not os.path.exists(pdf_path):

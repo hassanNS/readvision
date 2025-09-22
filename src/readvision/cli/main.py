@@ -23,6 +23,8 @@ Examples:
   readvision assets/document.pdf output.txt --bucket my-bucket
   readvision assets/arabic.pdf output.txt --text-direction rtl --encoding utf-8
   readvision assets/english.pdf output.txt --text-direction ltr --language-hint en
+  readvision assets/arabic.pdf output.txt --translate-to en --translate-from ar
+  readvision assets/document.pdf output.txt --translate-to es  # Auto-detect source
         '''
     )
 
@@ -52,6 +54,10 @@ Examples:
     parser.add_argument('--debug',
                        action='store_true',
                        help='Enable debug output for page ordering')
+    parser.add_argument('--translate-to',
+                       help='Target language code for translation (e.g., en, es, fr, de)')
+    parser.add_argument('--translate-from',
+                       help='Source language code for translation (auto-detect if not specified)')
     parser.add_argument('--version',
                        action='version',
                        version='%(prog)s 1.0.0')
@@ -78,6 +84,8 @@ Examples:
     ENCODING = args.encoding
     LANGUAGE_HINT = args.language_hint
     DEBUG = args.debug
+    TRANSLATE_TO = args.translate_to
+    TRANSLATE_FROM = args.translate_from
 
     print(f"Processing PDF: {PDF_PATH}")
     print(f"Output will be saved to: {OUTPUT_PATH}")
@@ -85,6 +93,8 @@ Examples:
     print(f"Text direction: {TEXT_DIRECTION.upper()}")
     print(f"Encoding: {ENCODING}")
     print(f"Language hint: {LANGUAGE_HINT}")
+    if TRANSLATE_TO:
+        print(f"🌐 Translation enabled: {TRANSLATE_FROM or 'auto-detect'} -> {TRANSLATE_TO}")
     if DEBUG:
         print(f"🔍 Debug mode: ENABLED")
 
@@ -103,7 +113,9 @@ Examples:
             text_direction=TEXT_DIRECTION,
             encoding=ENCODING,
             language_hint=LANGUAGE_HINT,
-            debug=DEBUG
+            debug=DEBUG,
+            translate_to=TRANSLATE_TO,
+            translate_from=TRANSLATE_FROM
         )
 
         # Read and display sample of output
@@ -118,6 +130,24 @@ Examples:
         word_path = OUTPUT_PATH.replace('.txt', '.docx')
         print(f"\nWord document created: {word_path}")
         print("Each page of the PDF maps to a page in the Word document.")
+
+        # Inform about translated files if translation was enabled
+        if TRANSLATE_TO:
+            base_path = Path(OUTPUT_PATH)
+            translated_txt = str(base_path.with_name(f"{base_path.stem}_translated_{TRANSLATE_TO}.txt"))
+            translated_docx = str(base_path.with_name(f"{base_path.stem}_translated_{TRANSLATE_TO}.docx"))
+            if os.path.exists(translated_txt):
+                print(f"\n🌐 Translated files created:")
+                print(f"   Text: {translated_txt}")
+                print(f"   Word: {translated_docx}")
+
+                # Show sample of translated text
+                with open(translated_txt, 'r', encoding=ENCODING) as f:
+                    translated_sample = f.read(300)
+                    print(f"\nSample of translated text ({TRANSLATE_TO}):")
+                    print("-" * 50)
+                    print(translated_sample)
+                    print("-" * 50)
 
     except Exception as e:
         print(f"Error: {e}")

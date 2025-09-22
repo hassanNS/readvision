@@ -12,11 +12,13 @@ from io import BytesIO
 
 try:
     from readvision.core.processor import PDFOCRProcessor
+    from readvision.utils.translator import TextTranslator
 except ImportError:  # pragma: no cover - fallback for direct script execution
     import sys
 
     sys.path.append(str(Path(__file__).resolve().parents[2]))
     from readvision.core.processor import PDFOCRProcessor
+    from readvision.utils.translator import TextTranslator
 
 
 def setup_page():
@@ -67,6 +69,45 @@ def sidebar_configuration():
         help="Enable debug output for troubleshooting"
     )
 
+    # Translation section
+    st.sidebar.header("🌐 Translation (Optional)")
+    enable_translation = st.sidebar.checkbox(
+        "Enable Translation",
+        value=False,
+        help="Translate the extracted text to another language"
+    )
+
+    translate_to = None
+    translate_from = None
+    if enable_translation:
+        # Get common languages
+        common_languages = TextTranslator.get_common_languages()
+        language_options = list(common_languages.keys())
+        language_labels = [f"{code} - {name}" for code, name in common_languages.items()]
+
+        translate_to = st.sidebar.selectbox(
+            "Translate To",
+            options=language_options,
+            format_func=lambda x: f"{x} - {common_languages[x]}",
+            index=language_options.index('en') if 'en' in language_options else 0,
+            help="Select the target language for translation"
+        )
+
+        auto_detect = st.sidebar.checkbox(
+            "Auto-detect source language",
+            value=True,
+            help="Automatically detect the source language"
+        )
+
+        if not auto_detect:
+            translate_from = st.sidebar.selectbox(
+                "Translate From",
+                options=language_options,
+                format_func=lambda x: f"{x} - {common_languages[x]}",
+                index=language_options.index('ar') if 'ar' in language_options else 0,
+                help="Select the source language"
+            )
+
     # Custom bucket
     use_custom_bucket = st.sidebar.checkbox(
         "Use Custom GCS Bucket",
@@ -87,7 +128,10 @@ def sidebar_configuration():
         "language_hint": language_hint,
         "encoding": encoding,
         "debug": debug_mode,
-        "bucket_name": custom_bucket if use_custom_bucket else None
+        "bucket_name": custom_bucket if use_custom_bucket else None,
+        "enable_translation": enable_translation,
+        "translate_to": translate_to,
+        "translate_from": translate_from
     }
 
 
@@ -175,7 +219,9 @@ def process_pdf(pdf_path, original_filename, credentials_path, config):
                 text_direction=config["text_direction"],
                 encoding=config["encoding"],
                 language_hint=config["language_hint"],
-                debug=config["debug"]
+                debug=config["debug"],
+                translate_to=config["translate_to"] if config["enable_translation"] else None,
+                translate_from=config["translate_from"] if config["enable_translation"] else None
             )
 
             progress_bar.progress(1.0)
@@ -190,18 +236,46 @@ def process_pdf(pdf_path, original_filename, credentials_path, config):
             with open(word_path, 'rb') as f:
                 docx_content = f.read()
 
-            return text_content, docx_content, output_txt, output_docx
+            # Check for translated files if translation was enabled
+            translated_content = None
+            translated_docx_content = None
+            translated_txt_filename = None
+            translated_docx_filename = None
+
+            if config["enable_translation"] and config["translate_to"]:
+                # Look for translated files
+                base_name = Path(output_txt).stem.replace('_output', '')
+                translated_txt_filename = f"{base_name}_translated_{config['translate_to']}.txt"
+                translated_docx_filename = f"{base_name}_translated_{config['translate_to']}.docx"
+
+                translated_txt_path = temp_output_path.replace('.txt', f'_translated_{config["translate_to"]}.txt')
+                translated_docx_path = temp_output_path.replace('.txt', f'_translated_{config["translate_to"]}.docx')
+
+                if os.path.exists(translated_txt_path):
+                    with open(translated_txt_path, 'r', encoding=config["encoding"]) as f:
+                        translated_content = f.read()
+
+                if os.path.exists(translated_docx_path):
+                    with open(translated_docx_path, 'rb') as f:
+                        translated_docx_content = f.read()
+
+            return (text_content, docx_content, output_txt, output_docx,
+                   translated_content, translated_docx_content,
+                   translated_txt_filename, translated_docx_filename)
 
     except Exception as e:
         st.error(f"❌ Error processing PDF: {str(e)}")
         return None, None, None, None
 
 
-def display_results(text_content, docx_content, txt_filename, docx_filename, config):
+def display_results(text_content, docx_content, txt_filename, docx_filename, config,
+                   translated_content=None, translated_docx_content=None,
+                   translated_txt_filename=None, translated_docx_filename=None):
     """Display processing results and download options."""
     st.subheader("✅ Processing Complete!")
 
-    # Create two columns for downloads
+    # Original files section
+    st.markdown("### 📄 Original Files")
     col1, col2 = st.columns(2)
 
     with col1:
@@ -222,32 +296,109 @@ def display_results(text_content, docx_content, txt_filename, docx_filename, con
             help="Download the formatted Word document"
         )
 
+    # Translated files section (if available)
+    if translated_content and translated_docx_content:
+        st.markdown(f"### 🌐 Translated Files ({config['translate_to'].upper()})")
+        col3, col4 = st.columns(2)
+
+        with col3:
+            st.download_button(
+                label=f"📄 Download Translated Text ({config['translate_to'].upper()})",
+                data=translated_content.encode(config["encoding"]),
+                file_name=translated_txt_filename,
+                mime="text/plain",
+                help=f"Download the translated text as a .txt file"
+            )
+
+        with col4:
+            st.download_button(
+                label=f"📝 Download Translated Word ({config['translate_to'].upper()})",
+                data=translated_docx_content,
+                file_name=translated_docx_filename,
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                help=f"Download the translated Word document"
+            )
+
     # Show text preview
     st.subheader("👀 Text Preview")
 
     # Character count
     char_count = len(text_content)
     word_count = len(text_content.split())
-    st.metric("Statistics", f"{char_count:,} characters, {word_count:,} words")
 
-    # Text preview with option to show full text
-    show_full_text = st.checkbox("Show full text", value=False)
+    # Create metrics columns
+    metric_col1, metric_col2 = st.columns(2)
+    with metric_col1:
+        st.metric("Original Text", f"{char_count:,} characters, {word_count:,} words")
 
-    if show_full_text:
-        st.text_area(
-            "Extracted Text",
-            value=text_content,
-            height=400,
-            help="Full extracted text from the PDF"
-        )
+    if translated_content:
+        translated_char_count = len(translated_content)
+        translated_word_count = len(translated_content.split())
+        with metric_col2:
+            st.metric(f"Translated Text ({config['translate_to'].upper()})",
+                     f"{translated_char_count:,} characters, {translated_word_count:,} words")
+
+    # Preview tabs
+    if translated_content:
+        tab1, tab2 = st.tabs(["📄 Original Text", f"🌐 Translated Text ({config['translate_to'].upper()})"])
+
+        with tab1:
+            show_full_original = st.checkbox("Show full original text", value=False, key="show_full_orig")
+            if show_full_original:
+                st.text_area(
+                    "Original Extracted Text",
+                    value=text_content,
+                    height=400,
+                    help="Full extracted text from the PDF",
+                    key="orig_full"
+                )
+            else:
+                preview_text = text_content[:1000] + "..." if len(text_content) > 1000 else text_content
+                st.text_area(
+                    "Original Text Preview (first 1000 characters)",
+                    value=preview_text,
+                    height=200,
+                    help="Preview of the extracted text",
+                    key="orig_preview"
+                )
+
+        with tab2:
+            show_full_translated = st.checkbox("Show full translated text", value=False, key="show_full_trans")
+            if show_full_translated:
+                st.text_area(
+                    f"Translated Text ({config['translate_to'].upper()})",
+                    value=translated_content,
+                    height=400,
+                    help="Full translated text",
+                    key="trans_full"
+                )
+            else:
+                translated_preview = translated_content[:1000] + "..." if len(translated_content) > 1000 else translated_content
+                st.text_area(
+                    f"Translated Text Preview (first 1000 characters)",
+                    value=translated_preview,
+                    height=200,
+                    help="Preview of the translated text",
+                    key="trans_preview"
+                )
     else:
-        preview_text = text_content[:1000] + "..." if len(text_content) > 1000 else text_content
-        st.text_area(
-            "Text Preview (first 1000 characters)",
-            value=preview_text,
-            height=200,
-            help="Preview of the extracted text"
-        )
+        # Original preview only
+        show_full_text = st.checkbox("Show full text", value=False)
+        if show_full_text:
+            st.text_area(
+                "Extracted Text",
+                value=text_content,
+                height=400,
+                help="Full extracted text from the PDF"
+            )
+        else:
+            preview_text = text_content[:1000] + "..." if len(text_content) > 1000 else text_content
+            st.text_area(
+                "Text Preview (first 1000 characters)",
+                value=preview_text,
+                height=200,
+                help="Preview of the extracted text"
+            )
 
 
 def main():
@@ -271,15 +422,27 @@ def main():
             if pdf_path and original_filename:
                 # Step 3: Process button
                 if st.button("🚀 Start OCR Processing", type="primary"):
-                    text_content, docx_content, txt_filename, docx_filename = process_pdf(
+                    result = process_pdf(
                         pdf_path, original_filename, credentials_path, config
                     )
 
-                    if text_content and docx_content:
+                    if result and len(result) >= 4 and result[0] and result[1]:
+                        # Unpack results (handling both old and new format)
+                        if len(result) == 8:
+                            (text_content, docx_content, txt_filename, docx_filename,
+                             translated_content, translated_docx_content,
+                             translated_txt_filename, translated_docx_filename) = result
+                        else:
+                            (text_content, docx_content, txt_filename, docx_filename) = result[:4]
+                            translated_content = translated_docx_content = None
+                            translated_txt_filename = translated_docx_filename = None
+
                         # Step 4: Display results
                         display_results(
                             text_content, docx_content,
-                            txt_filename, docx_filename, config
+                            txt_filename, docx_filename, config,
+                            translated_content, translated_docx_content,
+                            translated_txt_filename, translated_docx_filename
                         )
 
                         # Clean up temporary files
@@ -311,6 +474,9 @@ def main():
         - ✅ Progress tracking
         - ✅ Batch processing for large files
         - ✅ Text cleaning & formatting
+        - ✅ **Optional translation** to 20+ languages
+        - ✅ Auto-language detection
+        - ✅ Translated .txt and .docx files
         """)
 
         st.subheader("📋 Supported Languages")
