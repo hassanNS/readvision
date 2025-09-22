@@ -32,6 +32,7 @@ dependencies = [
     "PyPDF2>=3.0.0",
     "python-docx>=0.8.11",
     "protobuf>=3.19.0",
+    "streamlit>=1.28.0",
 ]
 
 [project.optional-dependencies]
@@ -52,6 +53,7 @@ dev = [
 
 [project.scripts]
 readvision = "readvision.cli.main:main"
+readvision-ui = "readvision.ui.app:launch_ui"
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -57,12 +57,30 @@ pip install -e .
 
 ## 🎯 Usage
 
-### Basic Command
+### Option 1: Web UI (Recommended for Beginners)
+```bash
+readvision-ui
+```
+This opens a user-friendly web interface in your browser where you can:
+- Upload PDF files by drag & drop
+- Configure all settings with dropdowns and checkboxes
+- See real-time progress
+- Download results directly
+
+### Option 2: Command Line
 ```bash
 readvision <pdf_file> <output_file> [options]
 ```
 
 ### Windows Examples
+
+#### Web UI
+```cmd
+# Launch the web interface
+readvision-ui
+```
+
+#### Command Line
 ```cmd
 # Basic usage
 readvision assets\document.pdf output.txt
@@ -84,6 +102,14 @@ readvision assets\document.pdf output.txt --debug
 ```
 
 ### macOS/Linux Examples
+
+#### Web UI
+```bash
+# Launch the web interface
+readvision-ui
+```
+
+#### Command Line
 ```bash
 # Basic usage
 readvision assets/document.pdf output.txt
