@@ -58,6 +58,13 @@ Examples:
                        help='Target language code for translation (e.g., en, es, fr, de)')
     parser.add_argument('--translate-from',
                        help='Source language code for translation (auto-detect if not specified)')
+    parser.add_argument('--use-gemini',
+                       action='store_true',
+                       help='Use Gemini API for translation instead of Google Translate (requires GEMINI_API_KEY env var)')
+    parser.add_argument('--gemini-api-key',
+                       help='Gemini API key (optional, uses GEMINI_API_KEY env var if not provided)')
+    parser.add_argument('--translation-instructions',
+                       help='Additional instructions for Gemini translation (e.g., "Use formal tone", "Keep technical terms in original language")')
     parser.add_argument('--version',
                        action='version',
                        version='%(prog)s 1.0.0')
@@ -86,6 +93,9 @@ Examples:
     DEBUG = args.debug
     TRANSLATE_TO = args.translate_to
     TRANSLATE_FROM = args.translate_from
+    USE_GEMINI = args.use_gemini
+    GEMINI_API_KEY = args.gemini_api_key
+    TRANSLATION_INSTRUCTIONS = args.translation_instructions
 
     print(f"Processing PDF: {PDF_PATH}")
     print(f"Output will be saved to: {OUTPUT_PATH}")
@@ -94,7 +104,10 @@ Examples:
     print(f"Encoding: {ENCODING}")
     print(f"Language hint: {LANGUAGE_HINT}")
     if TRANSLATE_TO:
-        print(f"🌐 Translation enabled: {TRANSLATE_FROM or 'auto-detect'} -> {TRANSLATE_TO}")
+        provider = "Gemini" if USE_GEMINI else "Google Translate"
+        print(f"🌐 Translation enabled ({provider}): {TRANSLATE_FROM or 'auto-detect'} -> {TRANSLATE_TO}")
+        if TRANSLATION_INSTRUCTIONS and USE_GEMINI:
+            print(f"   📝 Custom instructions: {TRANSLATION_INSTRUCTIONS}")
     if DEBUG:
         print(f"🔍 Debug mode: ENABLED")
 
@@ -115,7 +128,10 @@ Examples:
             language_hint=LANGUAGE_HINT,
             debug=DEBUG,
             translate_to=TRANSLATE_TO,
-            translate_from=TRANSLATE_FROM
+            translate_from=TRANSLATE_FROM,
+            use_gemini=USE_GEMINI,
+            gemini_api_key=GEMINI_API_KEY,
+            translation_instructions=TRANSLATION_INSTRUCTIONS
         )
 
         # Read and display sample of output

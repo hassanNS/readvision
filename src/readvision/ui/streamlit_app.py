@@ -77,7 +77,33 @@ def sidebar_configuration():
 
     translate_to = None
     translate_from = None
+    use_gemini = False
+    gemini_api_key = None
+    translation_instructions = None
     if enable_translation:
+        # Translation provider selection
+        translation_provider = st.sidebar.radio(
+            "Translation Provider",
+            options=["Google Translate", "Gemini AI"],
+            index=0,
+            help="Choose the AI provider for translation"
+        )
+        use_gemini = (translation_provider == "Gemini AI")
+
+        # Gemini API key input if using Gemini
+        if use_gemini:
+            gemini_api_key = st.sidebar.text_input(
+                "Gemini API Key",
+                type="password",
+                help="Enter your Gemini API key (or set GEMINI_API_KEY env var). Get it from: https://makersuite.google.com/app/apikey",
+                placeholder="Your API key (or leave blank to use env var)"
+            )
+            if not gemini_api_key:
+                if os.getenv('GEMINI_API_KEY'):
+                    st.sidebar.info("ℹ️ Using GEMINI_API_KEY from environment")
+                else:
+                    st.sidebar.warning("⚠️ No Gemini API key provided. Set GEMINI_API_KEY env var or enter above.")
+
         # Get common languages
         common_languages = TextTranslator.get_common_languages()
         language_options = list(common_languages.keys())
@@ -105,6 +131,16 @@ def sidebar_configuration():
                 help="Select the source language"
             )
 
+        # Custom translation instructions (only for Gemini)
+        translation_instructions = None
+        if use_gemini:
+            translation_instructions = st.sidebar.text_area(
+                "Custom Instructions (Optional)",
+                placeholder='e.g., "Use formal tone", "Keep technical terms in original language"',
+                help="Provide additional instructions to guide Gemini's translation",
+                height=80
+            )
+
     # Custom bucket
     use_custom_bucket = st.sidebar.checkbox(
         "Use Custom GCS Bucket",
@@ -128,7 +164,10 @@ def sidebar_configuration():
         "bucket_name": custom_bucket if use_custom_bucket else None,
         "enable_translation": enable_translation,
         "translate_to": translate_to,
-        "translate_from": translate_from
+        "translate_from": translate_from,
+        "use_gemini": use_gemini,
+        "gemini_api_key": gemini_api_key if gemini_api_key else None,
+        "translation_instructions": translation_instructions if translation_instructions else None
     }
 
 
@@ -218,7 +257,10 @@ def process_pdf(pdf_path, original_filename, credentials_path, config):
                 language_hint=config["language_hint"],
                 debug=config["debug"],
                 translate_to=config["translate_to"] if config["enable_translation"] else None,
-                translate_from=config["translate_from"] if config["enable_translation"] else None
+                translate_from=config["translate_from"] if config["enable_translation"] else None,
+                use_gemini=config.get("use_gemini", False),
+                gemini_api_key=config.get("gemini_api_key", None),
+                translation_instructions=config.get("translation_instructions", None)
             )
 
             progress_bar.progress(1.0)

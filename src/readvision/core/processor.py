@@ -313,11 +313,17 @@ class PDFOCRProcessor:
             page_numbers: List of page numbers
             original_output_path: Path to the original output file
         """
-        print(f"🌐 Starting translation to '{self.translate_to}'...")
+        provider_name = "Gemini" if getattr(self, 'use_gemini', False) else "Google Translate"
+        print(f"🌐 Starting translation to '{self.translate_to}' using {provider_name}...")
 
         # Initialize translator
         credentials_path = os.environ.get('GOOGLE_APPLICATION_CREDENTIALS', 'gcp.json')
-        translator = TextTranslator(credentials_path)
+        translator = TextTranslator(
+            credentials_path=credentials_path,
+            use_gemini=getattr(self, 'use_gemini', False),
+            gemini_api_key=getattr(self, 'gemini_api_key', None),
+            translation_instructions=getattr(self, 'translation_instructions', None)
+        )
 
         # Translate all pages
         translated_results = translator.translate_page_texts(
@@ -381,7 +387,8 @@ class PDFOCRProcessor:
 
     def process_pdf(self, pdf_path, output_path='output.txt', chars_per_page=3000,
                     text_direction='rtl', encoding='utf-8', language_hint='ar', debug=False,
-                    translate_to=None, translate_from=None):
+                    translate_to=None, translate_from=None, use_gemini=False, gemini_api_key=None,
+                    translation_instructions=None):
         """
         Main method to process a PDF file
 
@@ -395,6 +402,9 @@ class PDFOCRProcessor:
             debug: Enable debug output for page ordering
             translate_to: Target language code for translation (optional)
             translate_from: Source language code for translation (optional, auto-detect if None)
+            use_gemini: Use Gemini API for translation instead of Google Translate (optional)
+            gemini_api_key: Gemini API key (optional, uses GEMINI_API_KEY env var if not provided)
+            translation_instructions: Additional instructions for Gemini translation (optional)
         """
         # Store parameters for later use
         self.chars_per_page = chars_per_page
@@ -404,6 +414,9 @@ class PDFOCRProcessor:
         self.debug = debug
         self.translate_to = translate_to
         self.translate_from = translate_from
+        self.use_gemini = use_gemini
+        self.gemini_api_key = gemini_api_key
+        self.translation_instructions = translation_instructions
 
         # Check if file exists
         if not os.path.exists(pdf_path):

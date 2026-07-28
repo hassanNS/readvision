@@ -163,17 +163,39 @@ cython_debug/
 .vscode/
 
 # Project specific - ReadVision
+
+# Credentials
 gcp.json
 *.json.key
 *service-account*.json
-*.pdf
-*.docx
-*.txt
+
+# Output directories
+/outputs/
 output/
-assets/
 temp/
 uploads/
 downloads/
+
+# User-generated files in root
+/*.pdf
+/*.docx
+/*_summary.md
+/*_transcript.txt
+/*_translated_*.txt
+/*_translated_*.docx
+
+# Example and asset directories (completely excluded)
+examples/
+assets/
+.claude/
+
+# Audio files (temporary downloads)
+/*.mp3
+/*.wav
+/*.m4a
+/audio/
+
+# macOS
 .DS_Store
 
 # Google Cloud specific

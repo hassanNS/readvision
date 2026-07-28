@@ -1,0 +1,12 @@
+# Core dependencies
+google-cloud-vision>=3.0.0
+google-cloud-storage>=2.0.0
+google-cloud-translate>=3.0.0
+PyPDF2>=3.0.0
+python-docx>=0.8.11
+protobuf>=3.19.0
+streamlit>=1.28.0
+
+# Gemini API support
+google-generativeai>=0.3.0
+python-dotenv>=1.0.0
