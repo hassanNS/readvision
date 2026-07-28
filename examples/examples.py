@@ -3,8 +3,6 @@
 Example usage script for the OCR processor with command line arguments
 """
 
-import subprocess
-import sys
 from pathlib import Path
 
 def run_ocr_example():

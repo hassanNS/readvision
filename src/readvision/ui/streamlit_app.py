@@ -7,8 +7,6 @@ import streamlit as st
 import tempfile
 import os
 from pathlib import Path
-import time
-from io import BytesIO
 
 try:
     from readvision.core.processor import PDFOCRProcessor
@@ -83,7 +81,6 @@ def sidebar_configuration():
         # Get common languages
         common_languages = TextTranslator.get_common_languages()
         language_options = list(common_languages.keys())
-        language_labels = [f"{code} - {name}" for code, name in common_languages.items()]
 
         translate_to = st.sidebar.selectbox(
             "Translate To",
@@ -426,16 +423,10 @@ def main():
                         pdf_path, original_filename, credentials_path, config
                     )
 
-                    if result and len(result) >= 4 and result[0] and result[1]:
-                        # Unpack results (handling both old and new format)
-                        if len(result) == 8:
-                            (text_content, docx_content, txt_filename, docx_filename,
-                             translated_content, translated_docx_content,
-                             translated_txt_filename, translated_docx_filename) = result
-                        else:
-                            (text_content, docx_content, txt_filename, docx_filename) = result[:4]
-                            translated_content = translated_docx_content = None
-                            translated_txt_filename = translated_docx_filename = None
+                    if result and result[0] and result[1]:
+                        (text_content, docx_content, txt_filename, docx_filename,
+                         translated_content, translated_docx_content,
+                         translated_txt_filename, translated_docx_filename) = result
 
                         # Step 4: Display results
                         display_results(
@@ -480,12 +471,7 @@ def main():
         """)
 
         st.subheader("📋 Supported Languages")
-        languages = {
-            "ar": "Arabic", "en": "English", "fr": "French",
-            "es": "Spanish", "de": "German", "it": "Italian",
-            "pt": "Portuguese", "ru": "Russian", "zh": "Chinese", "ja": "Japanese"
-        }
-        for code, name in languages.items():
+        for code, name in TextTranslator.get_common_languages().items():
             st.markdown(f"- **{code}**: {name}")
 
 

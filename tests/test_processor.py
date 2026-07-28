@@ -1,7 +1,7 @@
 """Tests for the main PDF OCR processor."""
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from readvision.core.processor import PDFOCRProcessor
 
 

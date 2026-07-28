@@ -1,6 +1,5 @@
 """Tests for text cleaning utilities."""
 
-import pytest
 from readvision.utils.text_cleaner import TextCleaner
 
 

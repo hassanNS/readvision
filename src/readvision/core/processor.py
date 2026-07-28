@@ -7,7 +7,6 @@ Processes multi-page PDFs using batch operations for efficiency
 import os
 import json
 import time
-import re
 from pathlib import Path
 from google.cloud import vision
 from google.cloud import storage
@@ -49,7 +48,7 @@ class PDFOCRProcessor:
     def _create_bucket(self):
         """Create a temporary bucket for batch operations"""
         try:
-            bucket = self.storage_client.create_bucket(self.bucket_name)
+            self.storage_client.create_bucket(self.bucket_name)
             print(f"Created bucket: {self.bucket_name}")
         except Exception as e:
             print(f"Bucket creation failed: {e}")

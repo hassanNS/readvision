@@ -3,8 +3,6 @@
 Arabic OCR Examples - Demonstrating the new text direction and encoding features
 """
 
-import subprocess
-import sys
 from pathlib import Path
 
 def show_arabic_examples():
