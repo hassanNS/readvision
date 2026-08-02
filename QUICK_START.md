@@ -31,11 +31,12 @@ ReadVision (Local Python Application)
 
 **Required:**
 - Python 3.8+
-- Google Cloud Vision API credentials (`gcp.json`)
 - FFmpeg (for YouTube audio extraction)
+- OpenAI Whisper (auto-installed, downloads models on first use)
 
 **Optional:**
-- Gemini API key (for AI-powered features)
+- Gemini API key (for translation and summarization, not required for transcription)
+- Google Cloud Vision API credentials (`gcp.json`, for PDF OCR)
 - Google Cloud Storage (for PDFs >5 pages)
 
 ## Installation
@@ -72,6 +73,7 @@ readvision document.pdf outputs/ocr/result.txt --translate --to en
 
 ### 2. YouTube Transcription
 
+#### Single Video
 ```bash
 # Transcribe and summarize YouTube video (auto-translates to English)
 readvision-youtube "https://youtube.com/watch?v=VIDEO_ID" --output outputs/youtube/video
@@ -83,10 +85,29 @@ readvision-youtube "URL" --output video --no-translate
 readvision-youtube "URL" --output video --keep-audio
 ```
 
-**Output:**
-- `video_transcript.txt` - Full verbatim transcript
-- `video_summary.md` - AI-generated summary with quotes (translated to English by default)
+**Output (with translation, default):**
+- `video_transcript.txt` - Full transcript in original language
+- `video_transcript_en.txt` - Full transcript translated to English
+- `video_summary.md` - English summary with original quotes
 - `video_audio.mp3` - Downloaded audio (if `--keep-audio` used)
+
+#### Playlist
+```bash
+# Process entire playlist
+readvision-youtube "https://youtube.com/playlist?list=PLAYLIST_ID" --playlist --output-dir outputs/youtube/playlist
+
+# Process videos 1-5 from playlist
+readvision-youtube "PLAYLIST_URL" --playlist --output-dir outputs/youtube --start 1 --end 5
+
+# Process from video 10 onwards
+readvision-youtube "PLAYLIST_URL" --playlist --output-dir outputs/youtube --start 10
+```
+
+**Output (per video, with translation):**
+- `001_video_title_transcript.txt` - Full transcript (original language)
+- `001_video_title_transcript_en.txt` - Full transcript (English)
+- `001_video_title_summary.md` - English summary with original quotes
+- (Files numbered by playlist position)
 
 ### 3. Text Translation
 

@@ -36,6 +36,7 @@ dependencies = [
     "google-generativeai>=0.3.0",
     "python-dotenv>=1.0.0",
     "yt-dlp>=2023.0.0",
+    "openai-whisper>=20231117",
 ]
 
 [project.optional-dependencies]
@@ -143,5 +144,6 @@ module = [
     "PyPDF2.*",
     "docx.*",
     "yt_dlp.*",
+    "whisper.*",
 ]
 ignore_missing_imports = true
